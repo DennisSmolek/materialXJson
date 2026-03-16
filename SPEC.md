@@ -30,20 +30,21 @@ Materials come from diverse sources with different structures:
 - **OpenPBR Surface** (`open_pbr_surface`) — successor, introduced in MaterialX 1.39, default in Maya 2025.3+, not yet widely adopted by material libraries or Three.js
 - **glTF PBR** (`gltf_pbr`) — simplified model matching glTF 2.0 core PBR
 
-When ingesting from textures (no .mtlx), we generate **Standard Surface** by default — it has the widest tooling support today. The shading model is configurable. When ingesting an existing .mtlx, we preserve whatever model it uses.
+When ingesting from textures (no .mtlx), we generate **OpenPBR Surface** by default — it is the current MaterialX standard (1.39+) and maps well to Three.js `MeshPhysicalNodeMaterial` via our own TSL layer. The shading model is configurable via `--shader` for consumers that need Standard Surface or glTF PBR. When ingesting an existing .mtlx, we preserve whatever model it uses.
 
 ### Shading Model Compatibility Matrix
 
 Downstream packages don't support all shading models equally. This matrix defines what each package can do:
 
-| | `standard_surface` | `open_pbr_surface` | `gltf_pbr` |
+| | `open_pbr_surface` | `standard_surface` | `gltf_pbr` |
 |---|---|---|---|
 | **@materialxjs/json** | Full | Full | Full |
-| **@materialxjs/ingest** (generate) | Full | Full | Full |
+| **@materialxjs/ingest** (generate) | Full (default) | Full | Full |
 | **@materialxjs/ingest** (passthrough) | Full | Full | Full |
-| **@materialxjs/gltf-pack** | Full | Lossy (approximated to glTF PBR) | Full |
-| **@materialxjs/tsl** | Full | Partial (mapped to Physical material, some params lost) | Full |
-| **Three.js MaterialXLoader** | Full | Unsupported (as of r175) | Untested |
+| **@materialxjs/gltf-pack** | Lossy (approximated to glTF PBR core) | Lossy (approximated to glTF PBR core) | Full |
+| **@materialxjs/tsl** | Full (primary target, maps to MeshPhysicalNodeMaterial) | Full (compatibility path) | Full |
+
+We do **not** use or depend on Three.js's built-in `MaterialXLoader`. Our `@materialxjs/tsl` package handles all shading model → TSL translation directly, giving us control over OpenPBR support and update cadence.
 
 **Degradation policy:** When a downstream package encounters an unsupported or partially-supported shading model:
 - **Full** — all inputs preserved and mapped correctly
@@ -287,7 +288,7 @@ interface ZipSafetyOptions {
 
 ```typescript
 interface IngestOptions {
-  shader?: "standard_surface" | "open_pbr_surface" | "gltf_pbr";  // default: "standard_surface"
+  shader?: "open_pbr_surface" | "standard_surface" | "gltf_pbr";  // default: "open_pbr_surface"
   overrides?: Record<string, TextureOverride>;  // passed to texture-map
   name?: string;                           // material name (default: inferred from input path)
   zip?: ZipSafetyOptions;                  // zip extraction limits
@@ -348,15 +349,15 @@ The TSL package reads the extract nodes from the glTF procedurals and generates 
 
 ### Channel → Shader Input Mapping
 
-| PbrChannel | Standard Surface input | OpenPBR input | glTF PBR input |
-|------------|----------------------|---------------|----------------|
+| PbrChannel | OpenPBR input (default) | Standard Surface input | glTF PBR input |
+|------------|------------------------|----------------------|----------------|
 | base_color | `base_color` | `base_color` | `base_color` |
 | specular_roughness | `specular_roughness` | `specular_roughness` | `roughness` |
 | metalness | `metalness` | `metalness` | `metallic` |
-| normal | `normal` | `geometry_normal` | `normal` |
-| displacement | `displacement` | `geometry_displacement` | — |
+| normal | `geometry_normal` | `normal` | `normal` |
+| displacement | `geometry_displacement` | `displacement` | — |
 | ambient_occlusion | `base` (multiplied) | `base` (multiplied) | `occlusion` |
-| opacity | `opacity` | `geometry_opacity` | `alpha` |
+| opacity | `geometry_opacity` | `opacity` | `alpha` |
 | emission | `emission_color` | `emission_color` | `emissive` |
 
 ### Path Handling
@@ -439,7 +440,7 @@ Converts glTF KHR_texture_procedurals JSON into Three.js TSL (Three.js Shading L
 
 ### Approach
 
-Three.js already has a `MaterialXLoader` that supports Standard Surface. We should study its implementation and build on the same patterns, consuming the glTF procedurals format rather than raw XML.
+We build our own shading model → TSL translation, independent of Three.js's `MaterialXLoader`. This gives us full OpenPBR support and control over the mapping.
 
 The flow:
 
@@ -448,8 +449,15 @@ MtlxDocument
   → documentToGltf() (@materialxjs/json, already exists)
   → glTF procedurals JSON
   → @materialxjs/tsl
-  → Three.js MeshStandardNodeMaterial / MeshPhysicalNodeMaterial
+  → Three.js MeshPhysicalNodeMaterial
 ```
+
+**Target material class:** `MeshPhysicalNodeMaterial` — it supports transmission, clearcoat, sheen, iridescence, and other properties that map to OpenPBR inputs. `MeshStandardNodeMaterial` is insufficient for OpenPBR's full input set.
+
+**Shading model support:**
+- **OpenPBR** — primary path, full mapping to Physical material properties
+- **Standard Surface** — compatibility path, maps to the same Physical material (input names differ but the PBR concepts are the same)
+- **glTF PBR** — direct 1:1 mapping to Physical material (this is what the material class was designed for)
 
 ### API (preliminary)
 
@@ -490,7 +498,7 @@ materialxjs create ./Wood066_2K/                  # folder → Wood066_2K.mtlx
 materialxjs create ./Wood066_2K/ --json           # folder → Wood066_2K.json
 materialxjs create Wood066_2K.zip --glb           # zip → Wood066_2K.glb + meta.json
 materialxjs create Wood066_2K.zip --glb --ktx2    # zip → .glb with KTX2 textures
-materialxjs create ./textures/ --shader open_pbr  # use OpenPBR instead of Standard Surface
+materialxjs create ./textures/ --shader standard_surface  # use Standard Surface instead of OpenPBR
 
 # ── Inspect (new: debug/preview) ──────────────────────────────
 materialxjs inspect ./Wood066_2K/                 # show detected texture channels
@@ -602,12 +610,13 @@ Phase 6 is the browser runtime story.
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Default shader model | Standard Surface | Widest tooling support (ambientCG, Polyhaven, Three.js). OpenPBR available as option |
+| Default shader model | OpenPBR Surface | Current MaterialX standard (1.39+). Own TSL layer handles mapping to MeshPhysicalNodeMaterial. Standard Surface/glTF PBR available via `--shader` flag |
 | Normal map convention | Assume GL | glTF standard. DX normals flagged, not auto-converted |
 | Packed textures (ARM/ORM) | Keep packed, wire via extract nodes | Preserves original texture. Extract nodes give per-target flexibility |
 | Colorspace inference | Channel + file format | EXR/HDR always linear, JPEG/PNG color channels sRGB, data channels linear |
 | KTX2 tooling | External `toktx` | Same approach as gltf-transform. Avoids bundling native code |
 | TSL input format | glTF procedurals JSON | Closer to Three.js node material mental model (flat graph, typed values, index refs) |
+| TSL implementation | Own layer, not Three.js MaterialXLoader | Full OpenPBR support, independent update cadence, MeshPhysicalNodeMaterial target |
 | TSL API | Async | Texture loading is inherently async; sync API would force awkward workarounds |
 | Package boundaries | Separate packages | `texture-map` is browser-safe and reusable without I/O. `ingest` handles the fs/zip layer |
 | Override support | Optional `overrides` map | Filename → channel for edge cases. Applied before auto-detection |
