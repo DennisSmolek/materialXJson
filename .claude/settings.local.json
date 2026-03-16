@@ -19,7 +19,15 @@
       "Bash(pnpm --version)",
       "Bash(pnpm install:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(pnpm --filter @materialxjs/cli add @materialxjs/ingest@workspace:* @materialxjs/texture-map@workspace:*)",
+      "Bash(pnpm --filter @materialxjs/cli build)",
+      "Bash(pnpm --filter @materialxjs/cli lint)",
+      "Bash(pnpm --filter @materialxjs/cli add -D vitest)",
+      "Bash(pnpm --filter @materialxjs/cli add -D fflate)",
+      "Bash(pnpm --filter @materialxjs/cli test)"
     ]
   }
 }
