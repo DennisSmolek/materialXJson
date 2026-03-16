@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(find /c/Users/denni/Documents/GitHub/HFOrg/backend/materialXJson -not -path ./.git* -type d)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:github.khronos.org)",
+      "WebFetch(domain:gltf-transform.donmccurdy.com)",
+      "WebFetch(domain:gltf-transform.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)",
+      "Bash(git clone:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx tsup:*)"
+    ]
+  }
+}
