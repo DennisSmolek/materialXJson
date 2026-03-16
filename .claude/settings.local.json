@@ -13,7 +13,13 @@
       "Bash(git clone:*)",
       "Bash(npx vitest:*)",
       "Bash(npx tsx:*)",
-      "Bash(npx tsup:*)"
+      "Bash(npx tsup:*)",
+      "Bash(npm ls:*)",
+      "Bash(corepack enable:*)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm test:*)"
     ]
   }
 }

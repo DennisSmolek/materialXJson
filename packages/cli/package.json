@@ -1,0 +1,35 @@
+{
+  "name": "@materialxjs/cli",
+  "version": "0.1.0",
+  "description": "CLI for converting between MaterialX XML and JSON formats",
+  "type": "module",
+  "bin": {
+    "materialxjs": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "dev": "tsx src/cli.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "materialx",
+    "cli",
+    "gltf",
+    "json"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@materialxjs/json": "workspace:*",
+    "citty": "^0.1.6",
+    "consola": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0",
+    "unbuild": "^3.5.0"
+  }
+}

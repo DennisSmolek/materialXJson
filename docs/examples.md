@@ -19,7 +19,7 @@ Practical examples for common workflows.
 ### XML to materialxjson
 
 ```typescript
-import { mtlxToJson } from "materialx-json";
+import { mtlxToJson, toJsonString } from "@materialxjs/json";
 
 const xml = `<?xml version="1.0"?>
 <materialx version="1.39" fileprefix="./">
@@ -33,7 +33,7 @@ const xml = `<?xml version="1.0"?>
 </materialx>`;
 
 const json = mtlxToJson(xml);
-console.log(JSON.stringify(json, null, 2));
+console.log(toJsonString(json));
 ```
 
 Output:
@@ -69,7 +69,7 @@ Output:
 ### materialxjson to XML
 
 ```typescript
-import { jsonToMtlx } from "materialx-json";
+import { jsonToMtlx } from "@materialxjs/json";
 
 const json = {
   mimetype: "application/mtlx+json" as const,
@@ -98,7 +98,7 @@ console.log(xml);
 ### XML to glTF Procedurals
 
 ```typescript
-import { parseMtlx, documentToGltf } from "materialx-json";
+import { parseMtlx, documentToGltf } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const gltf = documentToGltf(doc);
@@ -116,7 +116,7 @@ console.log(shader.inputs.base_color);
 ### Inspecting Material Structure
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -133,7 +133,7 @@ for (const child of doc.children) {
 ### Finding Specific Nodes
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -159,7 +159,7 @@ console.log(filePaths);
 ### Tracing Node Connections
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -184,7 +184,7 @@ for (const input of shader.inputs) {
 ### Modifying Values
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -209,8 +209,8 @@ const modifiedXml = serializeMtlx(doc);
 ### Adding New Nodes
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
-import type { MtlxElement } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
+import type { MtlxElement } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -250,7 +250,7 @@ const xml = serializeMtlx(doc);
 
 ```typescript
 import express from "express";
-import { readMtlxFile, documentToJson, documentToGltf } from "materialx-json/node";
+import { readMtlxFile, documentToJson, documentToGltf } from "@materialxjs/json/node";
 
 const app = express();
 
@@ -270,7 +270,7 @@ app.get("/api/materials/:name/gltf", async (req, res) => {
 
 // Accept JSON, return XML
 app.post("/api/materials/to-xml", express.json(), (req, res) => {
-  const { jsonToMtlx } = require("materialx-json");
+  const { jsonToMtlx } = require("@materialxjs/json");
   const xml = jsonToMtlx(req.body);
   res.type("application/xml").send(xml);
 });
@@ -285,7 +285,7 @@ import {
   readMtlxFile,
   documentToJson,
   writeJsonFile,
-} from "materialx-json/node";
+} from "@materialxjs/json/node";
 
 async function convertDirectory(inputDir: string, outputDir: string) {
   const files = await readdir(inputDir);
@@ -310,7 +310,7 @@ convertDirectory("./materials", "./output");
 ### Fetch and Display Material Properties
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 async function loadMaterial(url: string) {
   const response = await fetch(url);
@@ -339,8 +339,8 @@ async function loadMaterial(url: string) {
 ### Material Editor State Management
 
 ```typescript
-import { parseMtlx, documentToJson, documentFromJson, serializeMtlx } from "materialx-json";
-import type { MtlxDocument, MtlxJsonDocument } from "materialx-json";
+import { parseMtlx, documentToJson, documentFromJson, serializeMtlx } from "@materialxjs/json";
+import type { MtlxDocument, MtlxJsonDocument } from "@materialxjs/json";
 
 class MaterialEditor {
   private doc: MtlxDocument;
@@ -381,8 +381,8 @@ class MaterialEditor {
 ### Three.js Integration with KHR_texture_procedurals
 
 ```typescript
-import { parseMtlx, documentToGltf } from "materialx-json";
-import type { GltfProceduralDocument, GltfNode } from "materialx-json";
+import { parseMtlx, documentToGltf } from "@materialxjs/json";
+import type { GltfProceduralDocument, GltfNode } from "@materialxjs/json";
 
 // Convert MaterialX to the format Three.js GLTFLoader expects
 async function materialToThreeJsFormat(mtlxUrl: string) {
@@ -407,7 +407,7 @@ async function materialToThreeJsFormat(mtlxUrl: string) {
 ### Skip Certain Element Types
 
 ```typescript
-import { parseMtlx, documentToJson } from "materialx-json";
+import { parseMtlx, documentToJson } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -420,7 +420,7 @@ const json = documentToJson(doc, {
 ### Extract Only Texture Information
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 function extractTextures(xml: string) {
   const doc = parseMtlx(xml);
@@ -444,7 +444,7 @@ function extractTextures(xml: string) {
 ### Transform Texture Paths
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
 
 function rebaseTexturePaths(xml: string, newPrefix: string): string {
   const doc = parseMtlx(xml);
@@ -472,8 +472,8 @@ const updated = rebaseTexturePaths(xml, "https://cdn.example.com/textures/");
 ### materialxjson to glTF (via internal model)
 
 ```typescript
-import { documentFromJson, documentToGltf } from "materialx-json";
-import type { MtlxJsonDocument } from "materialx-json";
+import { documentFromJson, documentToGltf } from "@materialxjs/json";
+import type { MtlxJsonDocument } from "@materialxjs/json";
 
 function materialxJsonToGltf(json: MtlxJsonDocument) {
   const doc = documentFromJson(json);
@@ -484,8 +484,8 @@ function materialxJsonToGltf(json: MtlxJsonDocument) {
 ### glTF to materialxjson (via internal model)
 
 ```typescript
-import { documentFromGltf, documentToJson } from "materialx-json";
-import type { GltfProceduralDocument } from "materialx-json";
+import { documentFromGltf, documentToJson } from "@materialxjs/json";
+import type { GltfProceduralDocument } from "@materialxjs/json";
 
 function gltfToMaterialxJson(gltf: GltfProceduralDocument) {
   const doc = documentFromGltf(gltf);
@@ -503,7 +503,7 @@ import {
   documentFromJson,
   documentToGltf,
   documentFromGltf,
-} from "materialx-json";
+} from "@materialxjs/json";
 
 // Start with XML
 const doc = parseMtlx(xmlString);
@@ -525,8 +525,8 @@ const fromGltf = documentFromGltf(gltfJson);
 ### Build a Material from Scratch
 
 ```typescript
-import { serializeMtlx, documentToJson } from "materialx-json";
-import type { MtlxDocument } from "materialx-json";
+import { serializeMtlx, documentToJson } from "@materialxjs/json";
+import type { MtlxDocument } from "@materialxjs/json";
 
 const doc: MtlxDocument = {
   version: "1.39",
@@ -587,7 +587,7 @@ const doc: MtlxDocument = {
 console.log(serializeMtlx(doc));
 
 // Or as JSON
-console.log(JSON.stringify(documentToJson(doc), null, 2));
+console.log(toJsonString(documentToJson(doc)));
 ```
 
 Output XML:

@@ -1,22 +1,33 @@
-# materialx-json
+# @materialxjs
 
-TypeScript library for converting between MaterialX XML (`.mtlx`) and JSON formats. Supports two JSON representations:
+TypeScript monorepo for converting between MaterialX XML (`.mtlx`) and JSON formats. Supports two JSON representations:
 
 - **materialxjson** — lossless 1:1 mirror of the XML tree (compatible with [kwokcb/materialxjson](https://github.com/kwokcb/materialxjson))
 - **glTF KHR_texture_procedurals** — Khronos standard flat-array format with index-based node references
 
-Works in both Node.js and the browser. Includes a CLI for batch conversion.
+Works in both Node.js and the browser. Includes a smart CLI for batch conversion.
+
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| [`@materialxjs/json`](packages/json/) | Core parsing library — XML, materialxjson, and glTF conversions |
+| [`@materialxjs/cli`](packages/cli/) | Smart CLI with auto-format detection |
 
 ## Installation
 
 ```bash
-npm install materialx-json
+# Core library
+npm install @materialxjs/json
+
+# CLI (global)
+npm install -g @materialxjs/cli
 ```
 
 ## Quick Start
 
 ```typescript
-import { parseMtlx, documentToJson, documentToGltf } from "materialx-json";
+import { parseMtlx, documentToJson, documentToGltf, toJsonString } from "@materialxjs/json";
 
 const xml = `<?xml version="1.0"?>
 <materialx version="1.39">
@@ -34,45 +45,47 @@ const doc = parseMtlx(xml);
 
 // Convert to materialxjson format
 const json = documentToJson(doc);
-console.log(JSON.stringify(json, null, 2));
+console.log(toJsonString(json));
 
 // Convert to glTF KHR_texture_procedurals format
 const gltf = documentToGltf(doc);
-console.log(JSON.stringify(gltf, null, 2));
+console.log(toJsonString(gltf));
 ```
 
 ## CLI Usage
 
-The CLI provides four commands for converting between formats:
+The CLI auto-detects formats from file extensions — no subcommands needed:
 
 ```bash
-# XML -> materialxjson
-npx materialx-json m2j material.mtlx -o material.json
+# XML → materialxjson (auto)
+npx materialxjs material.mtlx          # → material.json
 
-# materialxjson -> XML
-npx materialx-json j2m material.json -o material.mtlx
+# JSON → XML (auto)
+npx materialxjs material.json          # → material.mtlx
 
-# XML -> glTF KHR_texture_procedurals
-npx materialx-json m2g material.mtlx -o material.gltf.json
+# XML → glTF procedurals (flag)
+npx materialxjs material.mtlx --gltf   # → material.gltf.json
 
-# glTF KHR_texture_procedurals -> XML
-npx materialx-json g2m material.gltf.json -o material.mtlx
+# XML → glTF procedurals (inferred from -o extension)
+npx materialxjs material.mtlx -o out.gltf.json
+
+# JSON → glTF (flag)
+npx materialxjs material.json --gltf   # → material.gltf.json
+
+# Batch convert a directory
+npx materialxjs ./materials/
 ```
 
-### Batch Conversion
+### Format Flags
 
-Pass a directory to convert all matching files:
+Use `--mtlx`, `--json`, or `--gltf` when auto-detection isn't enough. Priority: flag > `-o` extension > default.
 
-```bash
-npx materialx-json m2j ./materials/ -o ./output/
-```
-
-### Options
-
-| Flag | Commands | Description |
-|------|----------|-------------|
-| `-o, --output <path>` | all | Output file or directory |
-| `--indent <n>` | m2j, m2g | JSON indentation (default: 2) |
+| Flag | Output format |
+|------|--------------|
+| `--mtlx` | MaterialX XML |
+| `--json` | materialxjson |
+| `--gltf` | glTF KHR_texture_procedurals |
+| `--indent <n>` | JSON indentation (default: 2) |
 
 ## API Reference
 
@@ -83,7 +96,7 @@ npx materialx-json m2j ./materials/ -o ./output/
 Parse a MaterialX XML string into the internal document model.
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 console.log(doc.version);       // "1.39"
@@ -95,7 +108,7 @@ console.log(doc.children.length); // number of top-level elements
 Serialize an internal document model back to MaterialX XML.
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 // ... modify doc ...
@@ -109,7 +122,7 @@ const xml = serializeMtlx(doc);
 Convert an internal document to materialxjson format.
 
 ```typescript
-import { parseMtlx, documentToJson } from "materialx-json";
+import { parseMtlx, documentToJson } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const json = documentToJson(doc);
@@ -122,7 +135,7 @@ const json = documentToJson(doc);
 Convenience function: parse XML and convert to materialxjson in one step.
 
 ```typescript
-import { mtlxToJson } from "materialx-json";
+import { mtlxToJson } from "@materialxjs/json";
 
 const json = mtlxToJson(xmlString);
 ```
@@ -132,7 +145,7 @@ const json = mtlxToJson(xmlString);
 Convert materialxjson back to the internal document model.
 
 ```typescript
-import { documentFromJson, serializeMtlx } from "materialx-json";
+import { documentFromJson, serializeMtlx } from "@materialxjs/json";
 
 const doc = documentFromJson(jsonDocument);
 const xml = serializeMtlx(doc);
@@ -143,7 +156,7 @@ const xml = serializeMtlx(doc);
 Convenience function: convert materialxjson directly to XML string.
 
 ```typescript
-import { jsonToMtlx } from "materialx-json";
+import { jsonToMtlx } from "@materialxjs/json";
 
 const xml = jsonToMtlx(jsonDocument);
 ```
@@ -155,7 +168,7 @@ const xml = jsonToMtlx(jsonDocument);
 Convert an internal document to glTF KHR_texture_procedurals format. Loose nodes are automatically wrapped into nodegraph procedurals, and name-based references are converted to index-based references.
 
 ```typescript
-import { parseMtlx, documentToGltf } from "materialx-json";
+import { parseMtlx, documentToGltf } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const gltf = documentToGltf(doc);
@@ -167,7 +180,7 @@ const gltf = documentToGltf(doc);
 Convert glTF KHR_texture_procedurals back to the internal document model. Index-based references are resolved back to name-based references.
 
 ```typescript
-import { documentFromGltf, serializeMtlx } from "materialx-json";
+import { documentFromGltf, serializeMtlx } from "@materialxjs/json";
 
 const doc = documentFromGltf(gltfDocument);
 const xml = serializeMtlx(doc);
@@ -186,7 +199,7 @@ import {
   // All core exports are also available:
   documentToJson,
   documentToGltf,
-} from "materialx-json/node";
+} from "@materialxjs/json/node";
 
 // Read and parse a .mtlx file
 const doc = await readMtlxFile("./material.mtlx");
@@ -278,7 +291,7 @@ interface MtlxOutput {
 ### Working with the Model Directly
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 
@@ -417,11 +430,11 @@ Both JSON formats share the same internal `MtlxDocument` model. Round-trip throu
 
 ## Browser Usage
 
-The main entry point (`materialx-json`) has no Node.js dependencies and works in browsers:
+The main entry point (`@materialxjs/json`) has no Node.js dependencies and works in browsers:
 
 ```typescript
 // Browser — no Node.js polyfills needed
-import { parseMtlx, documentToJson, documentToGltf } from "materialx-json";
+import { parseMtlx, documentToJson, documentToGltf } from "@materialxjs/json";
 
 const response = await fetch("/materials/wood.mtlx");
 const xml = await response.text();
@@ -429,15 +442,14 @@ const doc = parseMtlx(xml);
 const json = documentToJson(doc);
 ```
 
-File I/O helpers are available only through the `materialx-json/node` entry point.
+File I/O helpers are available only through the `@materialxjs/json/node` entry point.
 
 ## Development
 
 ```bash
-npm install       # Install dependencies
-npm test          # Run tests
-npm run build     # Build ESM + CJS + types
-npm run lint      # Type-check
+pnpm install      # Install dependencies
+pnpm build        # Build all packages
+pnpm test         # Run tests
 ```
 
 ## References

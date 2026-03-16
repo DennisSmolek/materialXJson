@@ -16,7 +16,7 @@ Parse a MaterialX XML string into the internal document model. Handles any valid
 **Throws:** `Error` if the XML is missing a `<materialx>` root element.
 
 ```typescript
-import { parseMtlx } from "materialx-json";
+import { parseMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(`<?xml version="1.0"?>
 <materialx version="1.39" colorspace="lin_rec709">
@@ -43,7 +43,7 @@ Serialize an `MtlxDocument` to a MaterialX XML string.
 **Returns:** XML string with `<?xml version="1.0"?>` declaration.
 
 ```typescript
-import { parseMtlx, serializeMtlx } from "materialx-json";
+import { parseMtlx, serializeMtlx } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const xml = serializeMtlx(doc);
@@ -66,7 +66,7 @@ Convert an `MtlxDocument` to the materialxjson JSON format. This is a lossless c
 **Returns:** `MtlxJsonDocument` with `mimetype: "application/mtlx+json"`.
 
 ```typescript
-import { parseMtlx, documentToJson } from "materialx-json";
+import { parseMtlx, documentToJson } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const json = documentToJson(doc);
@@ -85,7 +85,7 @@ json.materialx.children[0].inputs[0]   // { name: "base_color", type: "color3", 
 Convenience function combining `parseMtlx` + `documentToJson`.
 
 ```typescript
-import { mtlxToJson } from "materialx-json";
+import { mtlxToJson } from "@materialxjs/json";
 
 const json = mtlxToJson(xmlString);
 ```
@@ -105,7 +105,7 @@ Convert a materialxjson document back to the internal `MtlxDocument` model.
 **Throws:** `Error` if the mimetype is wrong or the `materialx` root is missing.
 
 ```typescript
-import { documentFromJson, serializeMtlx } from "materialx-json";
+import { documentFromJson, serializeMtlx } from "@materialxjs/json";
 
 const json = {
   mimetype: "application/mtlx+json",
@@ -135,7 +135,7 @@ const xml = serializeMtlx(doc);
 Convenience function combining `documentFromJson` + `serializeMtlx`.
 
 ```typescript
-import { jsonToMtlx } from "materialx-json";
+import { jsonToMtlx } from "@materialxjs/json";
 
 const xml = jsonToMtlx(jsonDocument);
 ```
@@ -155,7 +155,7 @@ Loose (non-nodegraph) elements are automatically wrapped into a synthetic `nodeg
 **Returns:** `GltfProceduralDocument`
 
 ```typescript
-import { parseMtlx, documentToGltf } from "materialx-json";
+import { parseMtlx, documentToGltf } from "@materialxjs/json";
 
 const doc = parseMtlx(xmlString);
 const gltf = documentToGltf(doc);
@@ -176,7 +176,7 @@ Convert a glTF KHR_texture_procedurals document back to the internal model. Inde
 **Returns:** `MtlxDocument` (version defaults to `"1.39"`)
 
 ```typescript
-import { documentFromGltf, serializeMtlx } from "materialx-json";
+import { documentFromGltf, serializeMtlx } from "@materialxjs/json";
 
 const doc = documentFromGltf(gltfDocument);
 const xml = serializeMtlx(doc);
@@ -186,14 +186,14 @@ const xml = serializeMtlx(doc);
 
 ## Node.js File Helpers
 
-Available from `materialx-json/node`. This entry point re-exports all core functions plus file I/O utilities.
+Available from `@materialxjs/json/node`. This entry point re-exports all core functions plus file I/O utilities.
 
 ### `readMtlxFile(path: string): Promise<MtlxDocument>`
 
 Read and parse a `.mtlx` file from disk.
 
 ```typescript
-import { readMtlxFile } from "materialx-json/node";
+import { readMtlxFile } from "@materialxjs/json/node";
 
 const doc = await readMtlxFile("./materials/Wood052.mtlx");
 ```
@@ -203,7 +203,7 @@ const doc = await readMtlxFile("./materials/Wood052.mtlx");
 Serialize and write an `MtlxDocument` to a `.mtlx` file.
 
 ```typescript
-import { readMtlxFile, writeMtlxFile } from "materialx-json/node";
+import { readMtlxFile, writeMtlxFile } from "@materialxjs/json/node";
 
 const doc = await readMtlxFile("./input.mtlx");
 // modify doc...
@@ -215,7 +215,7 @@ await writeMtlxFile("./output.mtlx", doc);
 Read and parse a materialxjson `.json` file.
 
 ```typescript
-import { readJsonFile } from "materialx-json/node";
+import { readJsonFile } from "@materialxjs/json/node";
 
 const json = await readJsonFile("./material.json");
 ```
@@ -225,7 +225,7 @@ const json = await readJsonFile("./material.json");
 Write a materialxjson document to a `.json` file.
 
 ```typescript
-import { readMtlxFile, documentToJson, writeJsonFile } from "materialx-json/node";
+import { readMtlxFile, documentToJson, writeJsonFile } from "@materialxjs/json/node";
 
 const doc = await readMtlxFile("./material.mtlx");
 const json = documentToJson(doc);
@@ -260,7 +260,7 @@ await writeJsonFile("./material.json", json);
 
 ## Types
 
-All types are exported from the main `materialx-json` entry point:
+All types are exported from the main `@materialxjs/json` entry point:
 
 ```typescript
 import type {
@@ -285,5 +285,5 @@ import type {
   JsonWriteOptions,
   JsonReadOptions,
   GltfWriteOptions,
-} from "materialx-json";
+} from "@materialxjs/json";
 ```

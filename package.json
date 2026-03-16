@@ -1,55 +1,9 @@
 {
-  "name": "materialx-json",
-  "version": "0.1.0",
-  "description": "MaterialX XML to JSON converter with materialxjson and glTF KHR_texture_procedurals support",
-  "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
-    }
-  },
-  "bin": {
-    "materialx-json": "./dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
+  "name": "materialxjs",
+  "private": true,
   "scripts": {
-    "build": "tsup",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit",
-    "cli": "tsx src/cli.ts"
-  },
-  "keywords": [
-    "materialx",
-    "gltf",
-    "json",
-    "3d",
-    "pbr",
-    "materials",
-    "khronos"
-  ],
-  "license": "MIT",
-  "dependencies": {
-    "fast-xml-parser": "^4.5.0"
-  },
-  "devDependencies": {
-    "@types/node": "^25.5.0",
-    "commander": "^13.0.0",
-    "tsup": "^8.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
   }
 }

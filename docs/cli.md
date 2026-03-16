@@ -1,122 +1,97 @@
 # CLI Reference
 
-The `materialx-json` CLI converts between MaterialX XML and JSON formats from the command line.
+The `materialxjs` CLI auto-detects input and output formats from file extensions — no subcommands needed.
 
 ## Installation
 
 ```bash
 # Use directly with npx (no install needed)
-npx materialx-json --help
+npx materialxjs --help
 
 # Or install globally
-npm install -g materialx-json
-materialx-json --help
+npm install -g @materialxjs/cli
 
 # Or as a project dependency
-npm install materialx-json
-npx materialx-json --help
+npm install @materialxjs/cli
 ```
 
-## Commands
-
-### `m2j` — MaterialX XML to materialxjson
-
-Convert `.mtlx` files to the materialxjson JSON format (lossless).
+## Usage
 
 ```bash
-# Single file
-npx materialx-json m2j material.mtlx -o material.json
-
-# Output to different directory
-npx materialx-json m2j material.mtlx -o ./output/
-
-# Batch convert all .mtlx files in a directory
-npx materialx-json m2j ./materials/ -o ./output/
-
-# Custom indentation
-npx materialx-json m2j material.mtlx -o material.json --indent 4
-
-# Default output (same name with .json extension in current directory)
-npx materialx-json m2j material.mtlx
+materialxjs <input> [options]
 ```
 
-### `j2m` — materialxjson to MaterialX XML
+The CLI figures out what you want based on context:
 
-Convert materialxjson `.json` files back to `.mtlx` XML.
-
-```bash
-# Single file
-npx materialx-json j2m material.json -o material.mtlx
-
-# Batch convert
-npx materialx-json j2m ./json-files/ -o ./output/
-```
-
-### `m2g` — MaterialX XML to glTF KHR_texture_procedurals
-
-Convert `.mtlx` files to the glTF procedural texture JSON format.
-
-```bash
-# Single file (outputs .gltf.json)
-npx materialx-json m2g material.mtlx -o material.gltf.json
-
-# Batch convert
-npx materialx-json m2g ./materials/ -o ./output/
-```
-
-### `g2m` — glTF KHR_texture_procedurals to MaterialX XML
-
-Convert glTF procedural JSON files back to `.mtlx` XML.
-
-```bash
-# Single file
-npx materialx-json g2m material.gltf.json -o material.mtlx
-```
-
-## Options
-
-| Option | Short | Commands | Description | Default |
-|--------|-------|----------|-------------|---------|
-| `--output <path>` | `-o` | all | Output file or directory | Current directory, same base name |
-| `--indent <n>` | | m2j, m2g | JSON indentation spaces | `2` |
-| `--version` | `-V` | (global) | Show version number | |
-| `--help` | `-h` | (global) | Show help | |
-
-## Output Naming
-
-When no `-o` flag is given, files are written to the current directory with the input base name and appropriate extension:
-
-| Command | Input | Default Output |
-|---------|-------|---------------|
-| `m2j` | `path/to/Wood052.mtlx` | `./Wood052.json` |
-| `j2m` | `path/to/Wood052.json` | `./Wood052.mtlx` |
-| `m2g` | `path/to/Wood052.mtlx` | `./Wood052.gltf.json` |
-| `g2m` | `path/to/Wood052.gltf.json` | `./Wood052.mtlx` |
-
-When `-o` points to a directory (ending with `/`), the file is placed inside that directory with the default name.
+| Input | Default output | Why |
+|-------|---------------|-----|
+| `material.mtlx` | `material.json` | XML in → materialxjson out |
+| `material.json` | `material.mtlx` | JSON in → XML out |
+| `material.gltf.json` | `material.mtlx` | glTF in → XML out |
 
 ## Examples
 
-### Convert the sample materials
-
 ```bash
-# Convert all three sample materials to materialxjson
-npx materialx-json m2j materials/Onyx006_2K-JPG/Onyx006_2K-JPG.mtlx -o output/
-npx materialx-json m2j materials/Wood052_2K-JPG/Wood052_2K-JPG.mtlx -o output/
-npx materialx-json m2j materials/Wood066_2K-JPG/Wood066_2K-JPG.mtlx -o output/
+# XML → materialxjson (auto)
+materialxjs material.mtlx
+# → material.json
 
-# Convert to glTF procedural format
-npx materialx-json m2g materials/Onyx006_2K-JPG/Onyx006_2K-JPG.mtlx -o output/
+# JSON → XML (auto)
+materialxjs material.json
+# → material.mtlx
 
-# Round-trip: XML -> JSON -> XML
-npx materialx-json m2j material.mtlx -o temp.json
-npx materialx-json j2m temp.json -o roundtripped.mtlx
+# XML → glTF procedurals (flag)
+materialxjs material.mtlx --gltf
+# → material.gltf.json
+
+# XML → glTF procedurals (inferred from -o extension)
+materialxjs material.mtlx -o material.gltf.json
+# → material.gltf.json
+
+# JSON → glTF (flag)
+materialxjs material.json --gltf
+# → material.gltf.json
+
+# Custom output path
+materialxjs material.mtlx -o build/out.json
+
+# glTF → XML (auto-detected from .gltf.json extension)
+materialxjs material.gltf.json
+# → material.mtlx
+
+# Batch convert a directory
+materialxjs ./materials/
 ```
 
-### Use with development server (tsx)
+## Format Flags
 
-During development, you can use `tsx` to run the CLI directly from source:
+Use these when auto-detection isn't enough (e.g., JSON→glTF instead of JSON→XML):
 
-```bash
-npx tsx src/cli.ts m2j material.mtlx -o output.json
-```
+| Flag | Output format |
+|------|--------------|
+| `--mtlx` | MaterialX XML (`.mtlx`) |
+| `--json` | materialxjson (`.json`) |
+| `--gltf` | glTF KHR_texture_procedurals (`.gltf.json`) |
+
+**Priority order:** explicit flag > `-o` extension > default based on input format.
+
+## Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-o, --output <path>` | Output file or directory | Current dir, same base name |
+| `--indent <n>` | JSON indentation spaces | `2` |
+| `-V, --version` | Show version | |
+| `-h, --help` | Show help | |
+
+## Auto-Detection Logic
+
+**Input format** is detected from the file extension:
+- `.mtlx` → MaterialX XML
+- `.gltf.json` → glTF KHR_texture_procedurals
+- `.json` → auto-detected from content (`mimetype` key → materialxjson, `procedurals` key → glTF)
+
+**Output format** is resolved in this order:
+1. Explicit flag (`--mtlx`, `--json`, `--gltf`)
+2. Extension of `-o` path (`.mtlx`, `.json`, `.gltf.json`, `.gltf`)
+3. Default: opposite of input (XML↔JSON, glTF→XML)
