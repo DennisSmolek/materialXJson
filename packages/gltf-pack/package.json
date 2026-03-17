@@ -1,0 +1,47 @@
+{
+  "name": "@materialxjs/gltf-pack",
+  "version": "0.1.0",
+  "description": "Pack MtlxDocument + textures into .glb files with optional KTX2 compression",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "materialx",
+    "gltf",
+    "glb",
+    "pbr",
+    "ktx2",
+    "textures"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@materialxjs/json": "workspace:*",
+    "@materialxjs/texture-map": "workspace:*",
+    "@gltf-transform/core": "^4.1.0",
+    "@gltf-transform/extensions": "^4.1.0",
+    "@gltf-transform/functions": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.7.0",
+    "unbuild": "^3.5.0",
+    "vitest": "^3.0.0"
+  }
+}

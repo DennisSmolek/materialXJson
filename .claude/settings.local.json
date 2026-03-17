@@ -27,7 +27,10 @@
       "Bash(pnpm --filter @materialxjs/cli lint)",
       "Bash(pnpm --filter @materialxjs/cli add -D vitest)",
       "Bash(pnpm --filter @materialxjs/cli add -D fflate)",
-      "Bash(pnpm --filter @materialxjs/cli test)"
+      "Bash(pnpm --filter @materialxjs/cli test)",
+      "Read(//c/Users/denni/Downloads/**)",
+      "Bash(pnpm --filter @materialxjs/gltf-pack build)",
+      "Bash(pnpm --filter @materialxjs/gltf-pack test)"
     ]
   }
 }
