@@ -23,6 +23,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@materialxjs/gltf-pack": "workspace:*",
     "@materialxjs/ingest": "workspace:*",
     "@materialxjs/json": "workspace:*",
     "@materialxjs/texture-map": "workspace:*",

@@ -3,7 +3,7 @@
  * @materialxjs/cli
  *
  * Unified CLI for MaterialX material management: convert between formats,
- * inspect material sources, and create materials from texture folders/zips.
+ * inspect material sources, create materials, and pack into GLB.
  *
  * @example
  * ```bash
@@ -16,13 +16,17 @@
  *
  * # Create a material from textures
  * materialxjs create ./Wood066_2K/             # → Wood066_2K.mtlx
- * materialxjs create Wood066_2K.zip --json     # → Wood066_2K.json
+ * materialxjs create Wood066_2K.zip --glb      # → Wood066_2K.glb + meta.json
+ *
+ * # Pack an existing material into GLB
+ * materialxjs pack material.mtlx               # → material.glb + meta.json
  * ```
  */
 import { defineCommand, runMain } from "citty";
 import { convert } from "./commands/convert.js";
 import { inspect } from "./commands/inspect.js";
 import { create } from "./commands/create.js";
+import { pack } from "./commands/pack.js";
 
 const main = defineCommand({
   meta: {
@@ -35,6 +39,7 @@ const main = defineCommand({
     convert,
     inspect,
     create,
+    pack,
   },
 });
 

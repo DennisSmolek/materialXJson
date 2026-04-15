@@ -285,6 +285,159 @@ describe("cli — create", () => {
   });
 });
 
+// ── Create --glb ────────────────────────────────────────────────────
+
+describe("cli — create --glb", () => {
+  it("creates .glb + .meta.json from texture folder", async () => {
+    const dir = await createTextureDir("create-glb-textures", {
+      "mat_color.jpg": "fake-image-data",
+      "mat_roughness.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "create-glb-output.glb");
+    await run(["create", dir, "--glb", "-o", outPath, "--force"]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+
+    const metaPath = outPath.replace(/\.glb$/, ".meta.json");
+    const metaContent = await readFile(metaPath, "utf-8");
+    const meta = JSON.parse(metaContent);
+    expect(meta.version).toBe("0.1.0");
+    expect(meta.channels).toContain("base_color");
+  });
+
+  it("creates .glb from zip file", async () => {
+    const zipPath = await createZipFile("create-glb.zip", {
+      "mat_color.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "from-zip-glb.glb");
+    await run(["create", zipPath, "--glb", "-o", outPath, "--force"]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+  });
+
+  it("supports --geometry option", async () => {
+    const dir = await createTextureDir("create-glb-sphere", {
+      "mat_color.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "create-glb-sphere.glb");
+    await run([
+      "create", dir, "--glb", "--geometry", "sphere",
+      "-o", outPath, "--force",
+    ]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+  });
+
+  it("dry-run shows both .glb and .meta.json", async () => {
+    const dir = await createTextureDir("create-glb-dryrun", {
+      "mat_color.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "dryrun-glb.glb");
+    const { output } = await run([
+      "create", dir, "--glb", "-o", outPath, "--dry-run",
+    ]);
+
+    expect(output).toContain("[dry-run]");
+    expect(output).toContain(".glb");
+    expect(output).toContain(".meta.json");
+    await expect(stat(outPath)).rejects.toThrow();
+  });
+});
+
+// ── Pack command ────────────────────────────────────────────────────
+
+describe("cli — pack", () => {
+  it("packs a texture folder into .glb", async () => {
+    const dir = await createTextureDir("pack-textures", {
+      "mat_color.jpg": "fake-image-data",
+      "mat_normal.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "pack-output.glb");
+    await run(["pack", dir, "-o", outPath, "--force"]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+
+    const metaPath = outPath.replace(/\.glb$/, ".meta.json");
+    const metaContent = await readFile(metaPath, "utf-8");
+    const meta = JSON.parse(metaContent);
+    expect(meta.channels).toContain("base_color");
+    expect(meta.channels).toContain("normal");
+  });
+
+  it("packs a .mtlx file", async () => {
+    const mtlx = await createMtlxFile(
+      "pack-test.mtlx",
+      `<?xml version="1.0"?>
+<materialx version="1.39">
+  <standard_surface name="TestShader" type="surfaceshader">
+    <input name="base_color" type="color3" value="0.8, 0.2, 0.1" />
+  </standard_surface>
+  <surfacematerial name="TestMaterial" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="TestShader" />
+  </surfacematerial>
+</materialx>`,
+    );
+
+    const outPath = join(testDir, "pack-mtlx.glb");
+    await run(["pack", mtlx, "-o", outPath, "--force"]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+
+    const metaPath = outPath.replace(/\.glb$/, ".meta.json");
+    const metaContent = await readFile(metaPath, "utf-8");
+    const meta = JSON.parse(metaContent);
+    expect(meta.shader).toBe("standard_surface");
+  });
+
+  it("packs a zip file", async () => {
+    const zipPath = await createZipFile("pack-test.zip", {
+      "mat_color.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "pack-zip.glb");
+    await run(["pack", zipPath, "-o", outPath, "--force"]);
+
+    const glbStat = await stat(outPath);
+    expect(glbStat.size).toBeGreaterThan(0);
+  });
+
+  it("dry-run does not create files", async () => {
+    const dir = await createTextureDir("pack-dryrun", {
+      "mat_color.jpg": "fake-image-data",
+    });
+
+    const outPath = join(testDir, "pack-dryrun.glb");
+    const { output } = await run([
+      "pack", dir, "-o", outPath, "--dry-run",
+    ]);
+
+    expect(output).toContain("[dry-run]");
+    expect(output).toContain(".glb");
+    expect(output).toContain(".meta.json");
+    await expect(stat(outPath)).rejects.toThrow();
+  });
+
+  it("reports error for missing path", async () => {
+    await expect(
+      run(["pack", join(testDir, "nonexistent")]),
+    ).rejects.toThrow();
+  });
+
+  it("shows help without error", async () => {
+    await run(["pack", "--help"]);
+  });
+});
+
 // ── Convert command ─────────────────────────────────────────────────
 
 describe("cli — convert", () => {
