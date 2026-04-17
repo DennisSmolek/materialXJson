@@ -1,9 +1,15 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, basename, resolve } from "node:path";
-import { parseMtlx } from "@materialxjs/json";
-import { mapTextures, isTextureFile } from "@materialxjs/texture-map";
+import {
+  parseMtlx,
+  type MtlxDocument,
+  type MtlxElement,
+  type MtlxInput,
+} from "@materialxjs/json";
+import { detectChannel, mapTextures, isTextureFile } from "@materialxjs/texture-map";
 import type { TextureMapping } from "@materialxjs/texture-map";
 import type { IngestOptions, IngestResult, ShaderModel } from "./types.js";
+import { SHADER_INPUT_MAP } from "./types.js";
 import { MaterialXError } from "./errors.js";
 import { extractZip } from "./zip.js";
 import { assembleMaterial } from "./assemble.js";
@@ -116,7 +122,7 @@ async function ingestMtlx(
   }
 
   // Extract texture info from the existing document
-  const textures: TextureMapping[] = [];
+  const textures = extractTexturesFromDocument(document);
   const textureDir = join(mtlxPath, "..");
 
   const noop = async () => {};
@@ -244,4 +250,168 @@ async function collectTextureFiles(dirPath: string): Promise<string[]> {
   }
 
   return textures;
+}
+
+//* Existing MaterialX Texture Extraction ============================
+
+const SHADER_CATEGORIES = [
+  "open_pbr_surface",
+  "standard_surface",
+  "gltf_pbr",
+] as const;
+
+function extractTexturesFromDocument(document: MtlxDocument): TextureMapping[] {
+  const textures = new Map<string, TextureMapping>();
+  const shaderNode = document.children.find((child) =>
+    SHADER_CATEGORIES.includes(
+      child.category as (typeof SHADER_CATEGORIES)[number],
+    ),
+  );
+  const materialNode = document.children.find(
+    (child) => child.category === "surfacematerial",
+  );
+
+  if (!shaderNode) return [];
+
+  const shaderModel = shaderNode.category as ShaderModel;
+  const inputToChannel = new Map<string, keyof typeof SHADER_INPUT_MAP[ShaderModel]>();
+
+  for (const [channel, inputName] of Object.entries(SHADER_INPUT_MAP[shaderModel])) {
+    if (!inputName) continue;
+    inputToChannel.set(inputName, channel as keyof typeof SHADER_INPUT_MAP[ShaderModel]);
+  }
+
+  for (const shaderInput of shaderNode.inputs) {
+    const channel = inputToChannel.get(shaderInput.name);
+    if (!channel) continue;
+
+    const fileInput = resolveTextureFileInput(document, shaderInput);
+    const mapping = fileInput
+      ? createTextureMappingFromInput(fileInput, channel)
+      : null;
+    if (mapping) textures.set(mapping.file, mapping);
+  }
+
+  const displacementInput = materialNode?.inputs.find(
+    (input) => input.name === "displacementshader",
+  );
+  const displacementFile = displacementInput
+    ? resolveTextureFileInput(document, displacementInput)
+    : null;
+  const displacementMapping = displacementFile
+    ? createTextureMappingFromInput(displacementFile, "displacement")
+    : null;
+  if (displacementMapping) textures.set(displacementMapping.file, displacementMapping);
+
+  return [...textures.values()];
+}
+
+function resolveTextureFileInput(
+  document: MtlxDocument,
+  reference: MtlxInput,
+  currentNodegraph?: string,
+  visited: Set<string> = new Set(),
+): MtlxInput | null {
+  const nodegraphName = reference.attributes.nodegraph ?? currentNodegraph;
+
+  if (nodegraphName && reference.output) {
+    const nodegraph = document.children.find(
+      (child) => child.category === "nodegraph" && child.name === nodegraphName,
+    );
+    const graphOutput = nodegraph?.outputs.find(
+      (output) => output.name === reference.output,
+    );
+
+    if (graphOutput) {
+      return resolveTextureFileInput(
+        document,
+        {
+          name: graphOutput.name,
+          type: graphOutput.type,
+          nodename: graphOutput.nodename,
+          output: graphOutput.output,
+          attributes: graphOutput.attributes,
+        },
+        nodegraphName,
+        visited,
+      );
+    }
+  }
+
+  const target = reference.nodename
+    ? findElementByName(document, reference.nodename, nodegraphName)
+    : null;
+  if (!target) return null;
+
+  const visitKey = `${nodegraphName ?? "root"}:${target.name}`;
+  if (visited.has(visitKey)) return null;
+  visited.add(visitKey);
+
+  const directFile = target.inputs.find(
+    (input) => input.name === "file" && input.value != null,
+  );
+  if (directFile) return directFile;
+
+  for (const input of target.inputs) {
+    if (!input.nodename && !input.attributes.nodegraph && !input.output) continue;
+
+    const nested = resolveTextureFileInput(
+      document,
+      input,
+      nodegraphName,
+      visited,
+    );
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function findElementByName(
+  document: MtlxDocument,
+  name: string,
+  nodegraphName?: string,
+): MtlxElement | undefined {
+  if (nodegraphName) {
+    const nodegraph = document.children.find(
+      (child) => child.category === "nodegraph" && child.name === nodegraphName,
+    );
+    const child = nodegraph?.children.find((entry) => entry.name === name);
+    if (child) return child;
+  }
+
+  return document.children.find((child) => child.name === name);
+}
+
+function createTextureMappingFromInput(
+  fileInput: MtlxInput,
+  fallbackChannel: TextureMapping["channel"],
+): TextureMapping | null {
+  if (!fileInput.value) return null;
+
+  const file = fileInput.value;
+  const filename = basename(file);
+  const detected = detectChannel(filename);
+  const colorspace = fileInput.attributes.colorspace?.includes("srgb")
+    ? "srgb"
+    : detected?.colorspace ?? "linear";
+
+  if (detected?.channel === "packed") {
+    return {
+      ...detected,
+      file,
+      colorspace,
+    };
+  }
+
+  return {
+    file,
+    channel: detected?.channel ?? fallbackChannel,
+    colorspace,
+    confidence: detected?.confidence ?? "override",
+    ...(detected?.normalConvention
+      ? { normalConvention: detected.normalConvention }
+      : {}),
+    ...(detected?.resolution ? { resolution: detected.resolution } : {}),
+  };
 }

@@ -28,8 +28,10 @@
 export type {
   PackOptions,
   PackResult,
+  PackGltfResult,
   MetaJson,
   PackInput,
+  WriteGltfResult,
 } from "./types.js";
 
-export { packGlb, writePackage } from "./pack.js";
+export { packGlb, packGltf, writePackage, writeGltfPackage } from "./pack.js";

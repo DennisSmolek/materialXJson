@@ -73,6 +73,29 @@ async function createMtlxFile(name: string, content: string): Promise<string> {
   return path;
 }
 
+async function createTexturedMtlxFixture(name: string): Promise<string> {
+  const dir = join(testDir, name);
+  await mkdir(join(dir, "textures"), { recursive: true });
+  await writeFile(join(dir, "textures", "color.jpg"), "fake-image-data");
+  await writeFile(
+    join(dir, `${name}.mtlx`),
+    `<?xml version="1.0"?>
+<materialx version="1.39">
+  <standard_surface name="TestShader" type="surfaceshader">
+    <input name="base_color" type="color3" nodename="ColorTex" />
+  </standard_surface>
+  <tiledimage name="ColorTex" type="color3">
+    <input name="file" type="filename" value="textures/color.jpg" colorspace="srgb_texture" />
+  </tiledimage>
+  <surfacematerial name="TestMaterial" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="TestShader" />
+  </surfacematerial>
+</materialx>`,
+  );
+
+  return join(dir, `${name}.mtlx`);
+}
+
 // ── Top-level help ──────────────────────────────────────────────────
 
 describe("cli — help", () => {
@@ -193,17 +216,48 @@ describe("cli — create", () => {
     expect(parsed.mimetype).toBe("application/mtlx+json");
   });
 
-  it("creates .gltf.json with --gltf flag", async () => {
+  it("creates a standard .gltf asset with --gltf flag", async () => {
     const dir = await createTextureDir("create-gltf", {
       "mat_color.jpg": "data",
     });
 
-    const outPath = join(testDir, "create-gltf.gltf.json");
+    const outPath = join(testDir, "create-gltf.gltf");
     await run(["create", dir, "--gltf", "-o", outPath, "--force"]);
 
     const content = await readFile(outPath, "utf-8");
     const parsed = JSON.parse(content);
+    expect(parsed.asset.version).toBe("2.0");
+    expect(parsed.materials).toHaveLength(1);
+  });
+
+  it("keeps procedural JSON behind --json --procedural", async () => {
+    const dir = await createTextureDir("create-procedural-json", {
+      "mat_color.jpg": "data",
+    });
+
+    const outPath = join(testDir, "create-procedural-json.gltf.json");
+    await run([
+      "create", dir, "--json", "--procedural", "-o", outPath, "--force",
+    ]);
+
+    const content = await readFile(outPath, "utf-8");
+    const parsed = JSON.parse(content);
     expect(parsed.procedurals).toBeDefined();
+  });
+
+  it("embeds procedural extension in .gltf assets", async () => {
+    const dir = await createTextureDir("create-procedural-gltf", {
+      "mat_color.jpg": "data",
+    });
+
+    const outPath = join(testDir, "create-procedural-gltf.gltf");
+    await run([
+      "create", dir, "--gltf", "--procedural", "-o", outPath, "--force",
+    ]);
+
+    const content = await readFile(outPath, "utf-8");
+    const parsed = JSON.parse(content);
+    expect(parsed.extensionsUsed).toContain("KHR_texture_procedurals");
   });
 
   it("respects --shader option", async () => {
@@ -460,7 +514,7 @@ describe("cli — convert", () => {
     expect(parsed.mimetype).toBe("application/mtlx+json");
   });
 
-  it("converts .mtlx to .gltf.json", async () => {
+  it("keeps procedural JSON behind --json --procedural", async () => {
     const mtlx = await createMtlxFile(
       "convert-gltf.mtlx",
       `<?xml version="1.0"?>
@@ -472,10 +526,61 @@ describe("cli — convert", () => {
     );
 
     const outPath = join(testDir, "convert-gltf.gltf.json");
-    await run(["convert", mtlx, "--gltf", "-o", outPath, "--force"]);
+    await run([
+      "convert", mtlx, "--json", "--procedural", "-o", outPath, "--force",
+    ]);
 
     const content = await readFile(outPath, "utf-8");
     const parsed = JSON.parse(content);
     expect(parsed.procedurals).toBeDefined();
+  });
+
+  it("converts .mtlx to a standard .gltf asset with --gltf", async () => {
+    const mtlx = await createTexturedMtlxFixture("convert-standard-gltf");
+    const outPath = join(testDir, "convert-standard-gltf.gltf");
+
+    await run(["convert", mtlx, "--gltf", "-o", outPath, "--force"]);
+
+    const content = JSON.parse(await readFile(outPath, "utf-8"));
+    expect(content.asset.version).toBe("2.0");
+    expect(content.materials).toHaveLength(1);
+    expect(content.images[0].uri).toBe("textures/color.jpg");
+
+    const binPath = outPath.replace(/\.gltf$/, ".bin");
+    const binStat = await stat(binPath);
+    expect(binStat.size).toBeGreaterThan(0);
+  });
+
+  it("embeds procedural extension in a .gltf asset with --gltf --procedural", async () => {
+    const mtlx = await createTexturedMtlxFixture("convert-procedural-gltf");
+    const outPath = join(testDir, "convert-procedural-gltf.gltf");
+
+    await run([
+      "convert", mtlx, "--gltf", "--procedural", "-o", outPath, "--force",
+    ]);
+
+    const content = JSON.parse(await readFile(outPath, "utf-8"));
+    expect(content.extensionsUsed).toContain("KHR_texture_procedurals");
+    expect(content.extensions.KHR_texture_procedurals.procedurals).toBeDefined();
+  });
+
+  it("keeps standalone procedural JSON behind --json --procedural", async () => {
+    const mtlx = await createMtlxFile(
+      "convert-procedural-json.mtlx",
+      `<?xml version="1.0"?>
+<materialx version="1.39">
+  <standard_surface name="Shader" type="surfaceshader">
+    <input name="base_color" type="color3" value="1, 0, 0" />
+  </standard_surface>
+</materialx>`,
+    );
+
+    const outPath = join(testDir, "convert-procedural-json.gltf.json");
+    await run([
+      "convert", mtlx, "--json", "--procedural", "-o", outPath, "--force",
+    ]);
+
+    const content = JSON.parse(await readFile(outPath, "utf-8"));
+    expect(content.procedurals).toBeDefined();
   });
 });

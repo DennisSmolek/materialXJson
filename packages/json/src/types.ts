@@ -78,6 +78,9 @@ export interface GltfProceduralDocument {
   procedurals: GltfProcedural[];
 }
 
+/** Explicit alias for the KHR_texture_procedurals document payload */
+export type GltfProceduralExtensionDocument = GltfProceduralDocument;
+
 /** A procedural graph (nodegraph) */
 export interface GltfProcedural {
   nodetype: "nodegraph";
@@ -88,6 +91,9 @@ export interface GltfProcedural {
   nodes?: GltfNode[];
 }
 
+/** Explicit alias for a KHR_texture_procedurals nodegraph payload */
+export type GltfProceduralExtension = GltfProcedural;
+
 /** A node within a procedural graph */
 export interface GltfNode {
   nodetype: string;
@@ -96,6 +102,9 @@ export interface GltfNode {
   inputs?: Record<string, GltfInput>;
   outputs?: Record<string, GltfOutput>;
 }
+
+/** Explicit alias for a node inside a KHR_texture_procedurals payload */
+export type GltfProceduralExtensionNode = GltfNode;
 
 /** An input in glTF format */
 export interface GltfInput {

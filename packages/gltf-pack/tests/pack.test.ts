@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomBytes } from "node:crypto";
 import { Document, NodeIO } from "@gltf-transform/core";
-import { packGlb, writePackage } from "../src/index.js";
+import { packGlb, packGltf, writePackage, writeGltfPackage } from "../src/index.js";
 import type { PackInput } from "../src/index.js";
 import type { TextureMapping } from "@materialxjs/texture-map";
 import type { MtlxDocument, MtlxElement } from "@materialxjs/json";
@@ -94,6 +94,72 @@ function createPackInput(
     textures,
     textureDir: dir,
     warnings: [],
+  };
+}
+
+function createUnsupportedFeatureDocument(materialName: string): MtlxDocument {
+  const shaderNode: MtlxElement = {
+    category: "standard_surface",
+    name: `${materialName}_Shader`,
+    type: "surfaceshader",
+    attributes: {},
+    inputs: [
+      {
+        name: "tangent",
+        type: "vector3",
+        nodename: "WorldTangent",
+        attributes: {},
+      },
+    ],
+    outputs: [],
+    children: [],
+  };
+
+  const displacementNode: MtlxElement = {
+    category: "displacement",
+    name: `${materialName}_Displacement`,
+    type: "displacementshader",
+    attributes: {},
+    inputs: [
+      {
+        name: "scale",
+        type: "float",
+        value: "0.01",
+        attributes: {},
+      },
+    ],
+    outputs: [],
+    children: [],
+  };
+
+  const materialNode: MtlxElement = {
+    category: "surfacematerial",
+    name: materialName,
+    type: "material",
+    attributes: {},
+    inputs: [
+      {
+        name: "surfaceshader",
+        type: "surfaceshader",
+        nodename: shaderNode.name,
+        attributes: {},
+      },
+      {
+        name: "displacementshader",
+        type: "displacementshader",
+        nodename: displacementNode.name,
+        attributes: {},
+      },
+    ],
+    outputs: [],
+    children: [],
+  };
+
+  return {
+    version: "1.39",
+    fileprefix: "./",
+    attributes: {},
+    children: [shaderNode, displacementNode, materialNode],
   };
 }
 
@@ -431,6 +497,59 @@ describe("packGlb", () => {
   });
 });
 
+// ── packGltf tests ────────────────────────────────────────────────
+
+describe("packGltf", () => {
+  it("creates a standard glTF JSON asset with external resources", async () => {
+    const dir = await createTextureDir("pack-gltf-basic", ["color.jpg"]);
+
+    const textures: TextureMapping[] = [
+      {
+        file: "color.jpg",
+        channel: "base_color",
+        colorspace: "srgb",
+        confidence: "exact",
+      },
+    ];
+
+    const input = createPackInput(dir, textures);
+    const { jsonDoc, meta } = await packGltf(input);
+
+    expect(jsonDoc.json.asset?.version).toBe("2.0");
+    expect(jsonDoc.json.materials).toHaveLength(1);
+    expect(jsonDoc.json.images?.[0].uri).toBe("color.jpg");
+    expect(Object.keys(jsonDoc.resources).some((key) => key.endsWith(".bin"))).toBe(true);
+    expect(meta.channels).toContain("base_color");
+  });
+
+  it("preserves unsupported MaterialX features in extras", async () => {
+    const dir = await createTextureDir("pack-gltf-extras", ["color.jpg"]);
+
+    const textures: TextureMapping[] = [
+      {
+        file: "color.jpg",
+        channel: "base_color",
+        colorspace: "srgb",
+        confidence: "exact",
+      },
+    ];
+
+    const input: PackInput = {
+      document: createUnsupportedFeatureDocument("UnsupportedMaterial"),
+      textures,
+      textureDir: dir,
+      warnings: [],
+    };
+
+    const { jsonDoc } = await packGltf(input);
+    const materialExtras = jsonDoc.json.materials?.[0].extras as Record<string, any>;
+
+    expect(materialExtras.materialx.sourceShader).toBe("standard_surface");
+    expect(materialExtras.materialx.unsupported.tangent).toBeDefined();
+    expect(materialExtras.materialx.unsupported.displacement).toBeDefined();
+  });
+});
+
 // ── writePackage tests ────────────────────────────────────────────
 
 describe("writePackage", () => {
@@ -481,5 +600,33 @@ describe("writePackage", () => {
 
     expect(glbPath).toBe(outPath + ".glb");
     expect(metaPath).toBe(outPath + ".meta.json");
+  });
+});
+
+describe("writeGltfPackage", () => {
+  it("writes .gltf, .bin, textures, and .meta.json", async () => {
+    const dir = await createTextureDir("write-gltf", ["color.jpg"]);
+
+    const textures: TextureMapping[] = [
+      {
+        file: "color.jpg",
+        channel: "base_color",
+        colorspace: "srgb",
+        confidence: "exact",
+      },
+    ];
+
+    const input = createPackInput(dir, textures);
+    const outPath = join(testDir, "gltf-output", "test.gltf");
+    const { gltfPath, metaPath, resourcePaths } = await writeGltfPackage(input, outPath);
+
+    expect(gltfPath).toBe(outPath);
+    expect(metaPath).toBe(join(testDir, "gltf-output", "test.meta.json"));
+    expect(resourcePaths.some((path) => path.endsWith(".bin"))).toBe(true);
+    expect(resourcePaths.some((path) => path.endsWith("color.jpg"))).toBe(true);
+
+    const gltfContent = JSON.parse(await readFile(gltfPath, "utf-8"));
+    expect(gltfContent.asset.version).toBe("2.0");
+    expect(gltfContent.images[0].uri).toBe("color.jpg");
   });
 });

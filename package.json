@@ -1,6 +1,8 @@
 {
   "name": "materialxjs",
   "private": true,
+  "author": "Dennis Smolek",
+  
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",

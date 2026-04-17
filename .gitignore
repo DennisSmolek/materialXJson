@@ -3,3 +3,6 @@ dist/
 reference/
 *.tsbuildinfo
 pnpm-lock.yaml
+.DS_Store
+materials/
+*.zip

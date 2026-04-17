@@ -5,25 +5,26 @@ import { basename, dirname, resolve } from "node:path";
 import {
   serializeMtlx,
   documentToJson,
-  documentToGltf,
+  documentToProceduralGltf,
   toJsonString,
 } from "@materialxjs/json";
 import { ingest, MaterialXError } from "@materialxjs/ingest";
 import type { ShaderModel } from "@materialxjs/ingest";
-import { writePackage } from "@materialxjs/gltf-pack";
+import { writeGltfPackage, writePackage } from "@materialxjs/gltf-pack";
 import { resolveOutputSafely } from "../util/output.js";
 
 /**
  * Create a MaterialX material from a texture folder, zip archive, or .mtlx file.
  *
  * Ingests the input source, assembles a MaterialX document, and writes it
- * to the chosen output format (.mtlx, .json, or .gltf.json).
+ * to the chosen output format (.mtlx, .json, .gltf, or .glb).
  *
  * @example
  * ```bash
  * materialxjs create ./Wood066_2K/                  # → Wood066_2K.mtlx
  * materialxjs create ./Wood066_2K/ --json           # → Wood066_2K.json
- * materialxjs create Wood066_2K.zip --gltf          # → Wood066_2K.gltf.json
+ * materialxjs create Wood066_2K.zip --gltf          # → Wood066_2K.gltf + resources
+ * materialxjs create Wood066_2K.zip --json --procedural # → Wood066_2K.gltf.json
  * materialxjs create Wood066_2K.zip --glb           # → Wood066_2K.glb + .meta.json
  * materialxjs create ./textures/ --glb --geometry sphere
  * materialxjs create ./textures/ --shader standard_surface
@@ -64,7 +65,13 @@ export const create = defineCommand({
     },
     gltf: {
       type: "boolean",
-      description: "Output as glTF KHR_texture_procedurals (.gltf.json)",
+      description: "Output as a standard glTF asset (.gltf)",
+      default: false,
+    },
+    procedural: {
+      type: "boolean",
+      description:
+        "Use KHR_texture_procedurals output or embed the procedural extension",
       default: false,
     },
     glb: {
@@ -99,6 +106,7 @@ export const create = defineCommand({
     },
   },
   async run({ args }) {
+    validateCreateArgs(args);
     const shader = args.shader as ShaderModel;
     const indent = parseInt(args.indent);
 
@@ -159,7 +167,42 @@ export const create = defineCommand({
         return;
       }
 
-      // Text format path (mtlx, json, gltf.json)
+      // Standard glTF asset path
+      if (args.gltf) {
+        const gltfOutPath = resolveCreateOutputPath(args.input, args.output, ".gltf");
+
+        if (args["dry-run"]) {
+          const metaOutPath = gltfOutPath.replace(/\.gltf$/, ".meta.json");
+          console.log(`[dry-run] Would create: ${gltfOutPath}`);
+          console.log(`[dry-run] Would create: ${metaOutPath}`);
+          console.log(`  Textures: ${result.textures.length}`);
+          console.log(`  Nodes: ${result.document.children.length}`);
+          console.log(`  Warnings: ${result.warnings.length}`);
+          return;
+        }
+
+        const safe = await resolveOutputSafely(gltfOutPath, args.force);
+        if (!safe) {
+          process.exitCode = 1;
+          return;
+        }
+
+        const geometry = args.geometry as "plane" | "sphere" | "cube" | "none";
+        const { gltfPath, metaPath } = await writeGltfPackage(result, gltfOutPath, {
+          assetMode: args.procedural ? "procedural" : "standard",
+          geometry,
+          embedMaterialX: args["embed-mtlx"],
+        });
+
+        consola.success(`Created ${gltfPath}`);
+        consola.success(`Created ${metaPath}`);
+        consola.info(
+          `  ${result.textures.length} textures, ${result.document.children.length} nodes`,
+        );
+        return;
+      }
+
+      // Text format path (mtlx, json, procedural .gltf.json)
       const { content, ext } = serializeOutput(
         result.document,
         args,
@@ -200,23 +243,41 @@ export const create = defineCommand({
 
 function serializeOutput(
   document: Parameters<typeof serializeMtlx>[0],
-  args: { json: boolean; gltf: boolean },
+  args: { json: boolean; procedural: boolean },
   indent: number,
 ): { content: string; ext: string } {
+  if (args.json && args.procedural) {
+    return {
+      content: toJsonString(documentToProceduralGltf(document), indent),
+      ext: ".gltf.json",
+    };
+  }
   if (args.json) {
     return {
       content: toJsonString(documentToJson(document), indent),
       ext: ".json",
     };
   }
-  if (args.gltf) {
-    return {
-      content: toJsonString(documentToGltf(document), indent),
-      ext: ".gltf.json",
-    };
-  }
   // Default: .mtlx
   return { content: serializeMtlx(document), ext: ".mtlx" };
+}
+
+function validateCreateArgs(args: {
+  json: boolean;
+  gltf: boolean;
+  glb: boolean;
+  procedural: boolean;
+}): void {
+  const formatFlags = [args.json, args.gltf, args.glb].filter(Boolean).length;
+  if (formatFlags > 1) {
+    throw new Error("Choose only one of --json, --gltf, or --glb.");
+  }
+  if (args.procedural && !args.json && !args.gltf) {
+    throw new Error("--procedural requires either --json or --gltf.");
+  }
+  if (args.glb && args.procedural) {
+    throw new Error("--procedural is not supported with --glb.");
+  }
 }
 
 /**

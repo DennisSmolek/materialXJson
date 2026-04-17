@@ -7,28 +7,30 @@ import {
   serializeMtlx,
   documentToJson,
   documentFromJson,
-  documentToGltf,
-  documentFromGltf,
+  documentToProceduralGltf,
+  documentFromProceduralGltf,
   toJsonString,
 } from "@materialxjs/json";
 import type {
   MtlxDocument,
   MtlxJsonDocument,
-  GltfProceduralDocument,
+  GltfProceduralExtensionDocument,
 } from "@materialxjs/json";
+import { ingest, MaterialXError } from "@materialxjs/ingest";
+import { writeGltfPackage } from "@materialxjs/gltf-pack";
 import { resolveOutputSafely } from "../util/output.js";
 
-type Format = "mtlx" | "json" | "gltf";
+type InputFormat = "mtlx" | "json" | "procedural-json" | "gltf-asset";
+type OutputFormat = "mtlx" | "json" | "procedural-json" | "gltf-asset";
 
 /**
- * Convert between MaterialX XML, materialxjson, and glTF procedural formats.
- *
- * This is the default command when no subcommand is specified.
+ * Convert between MaterialX XML, materialxjson, procedural glTF payloads,
+ * and standard glTF assets.
  */
 export const convert = defineCommand({
   meta: {
     name: "convert",
-    description: "Convert between MaterialX XML and JSON formats",
+    description: "Convert between MaterialX XML, JSON, and glTF outputs",
   },
   args: {
     input: {
@@ -53,7 +55,13 @@ export const convert = defineCommand({
     },
     gltf: {
       type: "boolean",
-      description: "Output as glTF KHR_texture_procedurals (.gltf.json)",
+      description: "Output as a standard glTF asset (.gltf)",
+      default: false,
+    },
+    procedural: {
+      type: "boolean",
+      description:
+        "Use KHR_texture_procedurals output or embed the procedural extension",
       default: false,
     },
     indent: {
@@ -73,9 +81,15 @@ export const convert = defineCommand({
     },
   },
   async run({ args }) {
-    const files = await resolveInputFiles(args.input);
+    validateArgs(args);
     const indent = parseInt(args.indent);
 
+    if (requestsGltfAssetOutput(args)) {
+      await writeStandardGltf(args.input, args);
+      return;
+    }
+
+    const files = await resolveInputFiles(args.input);
     if (files.length === 0) {
       consola.warn("No matching files found.");
       return;
@@ -106,26 +120,35 @@ export const convert = defineCommand({
 
 // ── Format detection ────────────────────────────────────────────────
 
-function detectInputFormat(file: string): Format {
+function detectInputFormat(file: string): InputFormat {
   if (file.endsWith(".mtlx")) return "mtlx";
-  if (file.endsWith(".gltf.json")) return "gltf";
+  if (file.endsWith(".gltf.json")) return "procedural-json";
+  if (file.endsWith(".gltf")) return "gltf-asset";
   return "json";
 }
 
-function detectFormatFromExtension(file: string): Format | null {
+function detectFormatFromExtension(file: string): OutputFormat | null {
   if (file.endsWith(".mtlx")) return "mtlx";
-  if (file.endsWith(".gltf.json") || file.endsWith(".gltf")) return "gltf";
+  if (file.endsWith(".gltf.json")) return "procedural-json";
+  if (file.endsWith(".gltf")) return "gltf-asset";
   if (file.endsWith(".json")) return "json";
   return null;
 }
 
 function resolveOutputFormat(
-  inputFormat: Format,
-  args: { mtlx: boolean; json: boolean; gltf: boolean; output?: string },
-): Format {
+  inputFormat: InputFormat,
+  args: {
+    mtlx: boolean;
+    json: boolean;
+    gltf: boolean;
+    procedural: boolean;
+    output?: string;
+  },
+): OutputFormat {
   if (args.mtlx) return "mtlx";
+  if (args.procedural && args.json) return "procedural-json";
   if (args.json) return "json";
-  if (args.gltf) return "gltf";
+  if (args.gltf) return "gltf-asset";
 
   if (args.output) {
     const detected = detectFormatFromExtension(args.output);
@@ -137,7 +160,9 @@ function resolveOutputFormat(
       return "json";
     case "json":
       return "mtlx";
-    case "gltf":
+    case "procedural-json":
+      return "mtlx";
+    case "gltf-asset":
       return "mtlx";
   }
 }
@@ -146,7 +171,7 @@ function resolveOutputFormat(
 
 async function loadDocument(
   file: string,
-  inputFormat: Format,
+  inputFormat: InputFormat,
 ): Promise<MtlxDocument> {
   const content = await readFile(file, "utf-8");
 
@@ -160,17 +185,24 @@ async function loadDocument(
     return documentFromJson(parsed as MtlxJsonDocument);
   }
   if (parsed.procedurals) {
-    return documentFromGltf(parsed as GltfProceduralDocument);
+    return documentFromProceduralGltf(
+      parsed as GltfProceduralExtensionDocument,
+    );
+  }
+  if (parsed.asset?.version) {
+    throw new Error(
+      `Standard glTF asset input is not supported yet for ${file}. Expected materialxjson or procedural JSON.`,
+    );
   }
 
   throw new Error(
-    `Cannot determine JSON format for ${file}. Expected "mimetype" or "procedurals" key.`,
+    `Cannot determine JSON format for ${file}. Expected "mimetype", "procedurals", or a supported glTF asset.`,
   );
 }
 
 function serializeDocument(
   doc: MtlxDocument,
-  outputFormat: Format,
+  outputFormat: OutputFormat,
   indent: number,
 ): { content: string; ext: string } {
   switch (outputFormat) {
@@ -181,11 +213,15 @@ function serializeDocument(
         content: toJsonString(documentToJson(doc), indent),
         ext: ".json",
       };
-    case "gltf":
+    case "procedural-json":
       return {
-        content: toJsonString(documentToGltf(doc), indent),
+        content: toJsonString(documentToProceduralGltf(doc), indent),
         ext: ".gltf.json",
       };
+    case "gltf-asset":
+      throw new Error(
+        "Standard glTF assets must be written through the asset packaging path.",
+      );
   }
 }
 
@@ -206,7 +242,7 @@ function resolveOutputPath(
   defaultExt: string,
 ): string {
   let base = basename(inputFile);
-  for (const ext of [".gltf.json", ".mtlx", ".json"]) {
+  for (const ext of [".gltf.json", ".gltf", ".mtlx", ".json"]) {
     if (base.endsWith(ext)) {
       base = base.slice(0, -ext.length);
       break;
@@ -222,4 +258,77 @@ function resolveOutputPath(
   }
 
   return output;
+}
+
+function validateArgs(args: {
+  mtlx: boolean;
+  json: boolean;
+  gltf: boolean;
+  procedural: boolean;
+}): void {
+  const formatFlags = [args.mtlx, args.json, args.gltf].filter(Boolean).length;
+  if (formatFlags > 1) {
+    throw new Error("Choose only one of --mtlx, --json, or --gltf.");
+  }
+  if (args.procedural && !args.json && !args.gltf) {
+    throw new Error("--procedural requires either --json or --gltf.");
+  }
+  if (args.procedural && args.mtlx) {
+    throw new Error("--procedural cannot be combined with --mtlx.");
+  }
+}
+
+function requestsGltfAssetOutput(args: {
+  gltf: boolean;
+  procedural: boolean;
+  output?: string;
+}): boolean {
+  if (args.gltf) return true;
+  if (!args.output) return false;
+  return detectFormatFromExtension(args.output) === "gltf-asset";
+}
+
+async function writeStandardGltf(
+  input: string,
+  args: {
+    output?: string;
+    force: boolean;
+    "dry-run": boolean;
+    procedural: boolean;
+  },
+): Promise<void> {
+  let result;
+  try {
+    result = await ingest(input);
+  } catch (err) {
+    if (err instanceof MaterialXError) {
+      consola.error(`${err.code}: ${err.message}`);
+      if (err.hint) consola.info(`Hint: ${err.hint}`);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
+  }
+
+  try {
+    const outPath = resolveOutputPath(input, args.output, ".gltf");
+
+    if (args["dry-run"]) {
+      consola.info(`[dry-run] ${input} → ${outPath}`);
+      consola.info(`[dry-run] ${outPath.replace(/\.gltf$/, ".meta.json")}`);
+      return;
+    }
+
+    const safe = await resolveOutputSafely(outPath, args.force);
+    if (!safe) return;
+
+    const { gltfPath, metaPath } = await writeGltfPackage(result, outPath, {
+      assetMode: args.procedural ? "procedural" : "standard",
+    });
+
+    consola.success(`${input} → ${gltfPath}`);
+    consola.success(`meta → ${metaPath}`);
+  } finally {
+    await result.cleanup();
+  }
 }

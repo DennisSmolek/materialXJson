@@ -7,8 +7,11 @@ export type {
   MtlxJsonDocument,
   MtlxJsonElement,
   GltfProceduralDocument,
+  GltfProceduralExtensionDocument,
   GltfProcedural,
+  GltfProceduralExtension,
   GltfNode,
+  GltfProceduralExtensionNode,
   GltfInput,
   GltfOutput,
   JsonWriteOptions,
@@ -27,3 +30,9 @@ export { documentFromJson, jsonToMtlx } from "./json/parser.js";
 // Internal model ↔ glTF KHR_texture_procedurals
 export { documentToGltf } from "./gltf/serializer.js";
 export { documentFromGltf } from "./gltf/parser.js";
+export {
+  documentToGltf as documentToProceduralGltf,
+} from "./gltf/serializer.js";
+export {
+  documentFromGltf as documentFromProceduralGltf,
+} from "./gltf/parser.js";

@@ -1,6 +1,6 @@
 # CLI Reference
 
-The `materialxjs` CLI auto-detects input and output formats from file extensions — no subcommands needed.
+The `materialxjs` CLI uses explicit subcommands. Format auto-detection still applies within the `convert` command.
 
 ## Installation
 
@@ -18,60 +18,96 @@ npm install @materialxjs/cli
 ## Usage
 
 ```bash
-materialxjs <input> [options]
+materialxjs <command> [args] [options]
 ```
 
-The CLI figures out what you want based on context:
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `convert` | Convert between MaterialX XML, materialxjson, procedural JSON, and standard glTF assets |
+| `inspect` | Inspect a texture folder, `.mtlx`, or `.zip` source |
+| `create` | Create a MaterialX material from textures, `.mtlx`, or `.zip` |
+| `pack` | Pack a material source into `.glb` + `.meta.json` |
+
+## Convert Usage
+
+```bash
+materialxjs convert <input> [options]
+```
+
+The `convert` command figures out the output format based on context:
 
 | Input | Default output | Why |
 |-------|---------------|-----|
 | `material.mtlx` | `material.json` | XML in → materialxjson out |
 | `material.json` | `material.mtlx` | JSON in → XML out |
-| `material.gltf.json` | `material.mtlx` | glTF in → XML out |
+| `material.gltf.json` | `material.mtlx` | Procedural JSON in → XML out |
 
 ## Examples
 
 ```bash
 # XML → materialxjson (auto)
-materialxjs material.mtlx
+materialxjs convert material.mtlx
 # → material.json
 
 # JSON → XML (auto)
-materialxjs material.json
+materialxjs convert material.json
 # → material.mtlx
 
-# XML → glTF procedurals (flag)
-materialxjs material.mtlx --gltf
-# → material.gltf.json
+# XML → standard glTF asset
+materialxjs convert material.mtlx --gltf
+# → material.gltf + resources
 
-# XML → glTF procedurals (inferred from -o extension)
-materialxjs material.mtlx -o material.gltf.json
-# → material.gltf.json
+# XML → standard glTF asset with procedural extension embedded
+materialxjs convert material.mtlx --gltf --procedural
+# → material.gltf + KHR_texture_procedurals
 
-# JSON → glTF (flag)
-materialxjs material.json --gltf
+# XML → standalone procedural JSON payload
+materialxjs convert material.mtlx --json --procedural
 # → material.gltf.json
 
 # Custom output path
-materialxjs material.mtlx -o build/out.json
+materialxjs convert material.mtlx -o build/out.json
 
 # glTF → XML (auto-detected from .gltf.json extension)
-materialxjs material.gltf.json
+materialxjs convert material.gltf.json
 # → material.mtlx
 
 # Batch convert a directory
-materialxjs ./materials/
+materialxjs convert ./materials/
+```
+
+## Other Command Examples
+
+```bash
+# Inspect a source before creating a material
+materialxjs inspect ./Wood066_2K/
+
+# Create a MaterialX document from textures
+materialxjs create ./Wood066_2K/
+
+# Create a standard glTF asset from textures
+materialxjs create ./Wood066_2K/ --gltf
+
+# Keep procedural JSON explicit when creating
+materialxjs create ./Wood066_2K/ --json --procedural
+
+# Pack a source into .glb + .meta.json
+materialxjs pack ./Wood066_2K/
 ```
 
 ## Format Flags
 
-Use these when auto-detection isn't enough (e.g., JSON→glTF instead of JSON→XML):
+Use these when auto-detection isn't enough:
 
 | Flag | Output format |
 |------|--------------|
 | `--mtlx` | MaterialX XML (`.mtlx`) |
 | `--json` | materialxjson (`.json`) |
-| `--gltf` | glTF KHR_texture_procedurals (`.gltf.json`) |
+| `--gltf` | Standard glTF asset (`.gltf`) |
+| `--json --procedural` | Standalone KHR_texture_procedurals payload (`.gltf.json`) |
+| `--gltf --procedural` | Standard glTF asset with embedded `KHR_texture_procedurals` |
 
 **Priority order:** explicit flag > `-o` extension > default based on input format.
 
@@ -81,6 +117,7 @@ Use these when auto-detection isn't enough (e.g., JSON→glTF instead of JSON→
 |--------|-------------|---------|
 | `-o, --output <path>` | Output file or directory | Current dir, same base name |
 | `--indent <n>` | JSON indentation spaces | `2` |
+| `--procedural` | Switch `--json` or `--gltf` into procedural mode | `false` |
 | `-V, --version` | Show version | |
 | `-h, --help` | Show help | |
 
@@ -89,9 +126,11 @@ Use these when auto-detection isn't enough (e.g., JSON→glTF instead of JSON→
 **Input format** is detected from the file extension:
 - `.mtlx` → MaterialX XML
 - `.gltf.json` → glTF KHR_texture_procedurals
+- `.gltf` → standard glTF asset output path
 - `.json` → auto-detected from content (`mimetype` key → materialxjson, `procedurals` key → glTF)
 
 **Output format** is resolved in this order:
 1. Explicit flag (`--mtlx`, `--json`, `--gltf`)
-2. Extension of `-o` path (`.mtlx`, `.json`, `.gltf.json`, `.gltf`)
-3. Default: opposite of input (XML↔JSON, glTF→XML)
+2. Procedural modifier (`--json --procedural` or `--gltf --procedural`)
+3. Extension of `-o` path (`.mtlx`, `.json`, `.gltf.json`, `.gltf`)
+4. Default: opposite of input (XML↔JSON, glTF→XML)
