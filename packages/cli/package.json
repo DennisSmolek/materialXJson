@@ -7,7 +7,9 @@
     "materialxjs": "./dist/cli.mjs"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "build": "unbuild",
@@ -21,6 +23,17 @@
     "gltf",
     "json"
   ],
+  "author": "Dennis Smolek <dennis@smolek.dev> (https://smolek.dev)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DennisSmolek/materialXJson.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/DennisSmolek/materialXJson/tree/main/packages/cli#readme",
+  "bugs": "https://github.com/DennisSmolek/materialXJson/issues",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "dependencies": {
     "@materialxjs/gltf-pack": "workspace:*",

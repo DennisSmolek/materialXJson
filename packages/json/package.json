@@ -19,7 +19,9 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "build": "unbuild",
@@ -36,6 +38,17 @@
     "materials",
     "khronos"
   ],
+  "author": "Dennis Smolek <dennis@smolek.dev> (https://smolek.dev)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DennisSmolek/materialXJson.git",
+    "directory": "packages/json"
+  },
+  "homepage": "https://github.com/DennisSmolek/materialXJson/tree/main/packages/json#readme",
+  "bugs": "https://github.com/DennisSmolek/materialXJson/issues",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "dependencies": {
     "fast-xml-parser": "^4.5.0"

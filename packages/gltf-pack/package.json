@@ -14,7 +14,9 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md"
   ],
   "scripts": {
     "build": "unbuild",
@@ -30,6 +32,17 @@
     "ktx2",
     "textures"
   ],
+  "author": "Dennis Smolek <dennis@smolek.dev> (https://smolek.dev)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DennisSmolek/materialXJson.git",
+    "directory": "packages/gltf-pack"
+  },
+  "homepage": "https://github.com/DennisSmolek/materialXJson/tree/main/packages/gltf-pack#readme",
+  "bugs": "https://github.com/DennisSmolek/materialXJson/issues",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "dependencies": {
     "@materialxjs/json": "workspace:*",

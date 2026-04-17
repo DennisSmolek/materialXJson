@@ -9,16 +9,22 @@ Works in both Node.js and the browser. Includes a smart CLI for batch conversion
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| [`@materialxjs/json`](packages/json/) | Core parsing library — XML, materialxjson, and procedural glTF conversions |
-| [`@materialxjs/cli`](packages/cli/) | CLI with `convert`, `inspect`, `create`, and `pack` commands |
+| Package | Description | Runtime |
+|---------|-------------|---------|
+| [`@materialxjs/json`](packages/json/) | Core XML ↔ materialxjson ↔ procedural glTF conversions | Node + browser |
+| [`@materialxjs/texture-map`](packages/texture-map/) | Detect PBR channels from texture filenames (pure logic) | Node + browser |
+| [`@materialxjs/ingest`](packages/ingest/) | Ingest PBR materials from folders, zips, or `.mtlx` files | Node |
+| [`@materialxjs/gltf-pack`](packages/gltf-pack/) | Pack `MtlxDocument` + textures into `.glb` (optional KTX2) | Node |
+| [`@materialxjs/cli`](packages/cli/) | `materialxjs` CLI — `convert`, `inspect`, `create`, `pack` | Node |
 
 ## Installation
 
 ```bash
-# Core library
+# Core library (browser + Node)
 npm install @materialxjs/json
+
+# Pipeline libraries (Node)
+npm install @materialxjs/texture-map @materialxjs/ingest @materialxjs/gltf-pack
 
 # CLI (global)
 npm install -g @materialxjs/cli
